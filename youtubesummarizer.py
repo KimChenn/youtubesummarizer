@@ -56,6 +56,14 @@ def detect_text(image_path):
             english_text.append(text)
     return english_text
 
+def add_watermark(image, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=1, color=(255, 255, 255), thickness=2):
+    """Add a text watermark to an image with a black outline for better visibility."""
+    text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+    text_x = position[0] - text_size[0] - 10  # Adjust position for padding
+    text_y = position[1] - 10  # Adjust position for padding
+    cv2.putText(image, text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness+4, lineType=cv2.LINE_AA)  # Black outline
+    cv2.putText(image, text, (text_x, text_y), font, font_scale, color, thickness, lineType=cv2.LINE_AA)
+
 def detect_scenes(video_path):
     """Detects and saves scenes from the video."""
     video_manager = VideoManager([video_path])
@@ -78,9 +86,8 @@ def detect_scenes(video_path):
             ret, frame_image = cap.read()
             if ret:
                 image_path = f'scene_{i}.jpg'
-                cv2.imwrite(image_path, frame_image)
-                print(f"Scene saved as {image_path}")
-                # Detect text in the scene image
+                cv2.imwrite(image_path, frame_image)  # Temporarily save the image without watermark
+                # Perform OCR on the image
                 text = detect_text(image_path)
                 if text:
                     print("English text detected:")
@@ -88,6 +95,10 @@ def detect_scenes(video_path):
                         print(line)
                 else:
                     print("No English text detected.")
+                # Add watermark after OCR
+                add_watermark(frame_image, "Kim Chen", (frame_image.shape[1], frame_image.shape[0]))
+                cv2.imwrite(image_path, frame_image)  # Save the image with the watermark
+                print(f"Scene saved as {image_path}")
             else:
                 print(f"Failed to save scene {i} at frame {mid_frame}")
     finally:
