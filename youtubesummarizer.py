@@ -6,6 +6,13 @@ from scenedetect import SceneManager
 from scenedetect.detectors import ContentDetector
 import cv2  # Import OpenCV for image processing
 import easyocr
+from PIL import Image  # Import the Python Imaging Library
+
+def setup_download_folder(folder_name="downloads"):
+    """Ensure the download folder exists."""
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    return folder_name
 
 def parse_duration(duration_str):
     """Parse duration string formatted as 'hh:mm:ss' or 'mm:ss' into total seconds."""
@@ -30,13 +37,13 @@ def search_videos(query):
                 return video
     return None
 
-def download_video(url):
+def download_video(url, download_folder):
     """Download the given video from YouTube."""
     try:
         yt = YouTube(url)
         stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
         if stream:
-            video_path = stream.download()
+            video_path = stream.download(output_path=download_folder)
             return video_path
         else:
             print("No suitable stream found.")
@@ -64,13 +71,14 @@ def add_watermark(image, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_sca
     cv2.putText(image, text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness+4, lineType=cv2.LINE_AA)  # Black outline
     cv2.putText(image, text, (text_x, text_y), font, font_scale, color, thickness, lineType=cv2.LINE_AA)
 
-def detect_scenes(video_path):
+def detect_scenes(video_path, download_folder):
     """Detects and saves scenes from the video."""
     video_manager = VideoManager([video_path])
     scene_manager = SceneManager()
     scene_manager.add_detector(ContentDetector(threshold=30.0, min_scene_len=15))  # Adjusted threshold and min_scene_len
     
     video_manager.start()
+    image_paths = []  # List to store image paths for GIF creation
     
     try:
         scene_manager.detect_scenes(frame_source=video_manager)
@@ -85,7 +93,7 @@ def detect_scenes(video_path):
             cap.set(cv2.CAP_PROP_POS_FRAMES, mid_frame)  # Set position to the middle frame of the scene
             ret, frame_image = cap.read()
             if ret:
-                image_path = f'scene_{i}.jpg'
+                image_path = os.path.join(download_folder, f'scene_{i}.jpg')
                 cv2.imwrite(image_path, frame_image)  # Temporarily save the image without watermark
                 # Perform OCR on the image
                 text = detect_text(image_path)
@@ -98,22 +106,34 @@ def detect_scenes(video_path):
                 # Add watermark after OCR
                 add_watermark(frame_image, "Kim Chen", (frame_image.shape[1], frame_image.shape[0]))
                 cv2.imwrite(image_path, frame_image)  # Save the image with the watermark
+                image_paths.append(image_path)
                 print(f"Scene saved as {image_path}")
             else:
                 print(f"Failed to save scene {i} at frame {mid_frame}")
     finally:
         video_manager.release()
         cap.release()
+    return image_paths
+
+def create_gif(image_paths, output_path="output.gif", duration=500):
+    """Create an animated GIF from a list of image files."""
+    images = [Image.open(image) for image in image_paths]
+    images[0].save(output_path, save_all=True, append_images=images[1:], optimize=False, duration=duration, loop=0)
+    print(f"Animated GIF created at {output_path}")
 
 def main():
+    download_folder = setup_download_folder()  # Setup download folder
     subject = input("Enter the subject to search: ").strip()
     video = search_videos(subject)
     if video:
         print(f"Downloading video: {video['title']} ({video['link']})")
-        video_path = download_video(video['link'])
+        video_path = download_video(video['link'], download_folder)
         if video_path:
             print(f"Video downloaded successfully: {video_path}")
-            detect_scenes(video_path)  # Detect and save scenes
+            image_paths = detect_scenes(video_path, download_folder)  # Detect and save scenes
+            if image_paths:
+                gif_path = os.path.join(download_folder, "scenes_animation.gif")
+                create_gif(image_paths, gif_path)
         else:
             print("Failed to download video.")
     else:
