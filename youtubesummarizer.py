@@ -5,6 +5,7 @@ from scenedetect import VideoManager
 from scenedetect import SceneManager
 from scenedetect.detectors import ContentDetector
 import cv2  # Import OpenCV for image processing
+import easyocr
 
 def parse_duration(duration_str):
     """Parse duration string formatted as 'hh:mm:ss' or 'mm:ss' into total seconds."""
@@ -17,7 +18,6 @@ def parse_duration(duration_str):
     elif len(parts) == 1:
         return parts[0]
     return 0
-
 
 def search_videos(query):
     """Search for videos and return the first result under 10 minutes."""
@@ -45,11 +45,22 @@ def download_video(url):
         print(f"An error occurred: {str(e)}")
         return None
 
+def detect_text(image_path):
+    """Detect English text in the given image using EasyOCR."""
+    reader = easyocr.Reader(['en'])  # Initialize EasyOCR with English as the language
+    result = reader.readtext(image_path)
+    english_text = []
+    for detection in result:
+        text = detection[1]  # Adjust to correct index for extracting text
+        if isinstance(text, str) and text.isascii():
+            english_text.append(text)
+    return english_text
+
 def detect_scenes(video_path):
     """Detects and saves scenes from the video."""
     video_manager = VideoManager([video_path])
     scene_manager = SceneManager()
-    scene_manager.add_detector(ContentDetector(threshold=40.0, min_scene_len=5))  # Adjusted threshold and min_scene_len
+    scene_manager.add_detector(ContentDetector(threshold=30.0, min_scene_len=15))  # Adjusted threshold and min_scene_len
     
     video_manager.start()
     
@@ -69,6 +80,14 @@ def detect_scenes(video_path):
                 image_path = f'scene_{i}.jpg'
                 cv2.imwrite(image_path, frame_image)
                 print(f"Scene saved as {image_path}")
+                # Detect text in the scene image
+                text = detect_text(image_path)
+                if text:
+                    print("English text detected:")
+                    for line in text:
+                        print(line)
+                else:
+                    print("No English text detected.")
             else:
                 print(f"Failed to save scene {i} at frame {mid_frame}")
     finally:
