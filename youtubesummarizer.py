@@ -99,7 +99,7 @@ def create_gif(image_paths, output_path="output.gif", duration=100):
 def display_gif(gif_path):
     root = tk.Tk()
     gif = Image.open(gif_path)
-    canvas = tk.Canvas(root, width=gif.width, height=gif.height)  # Corrected here
+    canvas = tk.Canvas(root, width=gif.width, height=gif.height) 
     canvas.pack()
     sequence = [ImageTk.PhotoImage(img) for img in ImageSequence.Iterator(gif)]
     image = canvas.create_image(0, 0, image=sequence[0], anchor=tk.NW)
