@@ -83,7 +83,7 @@ def detect_scenes(video_path, download_folder):
                 cv2.imwrite(image_path, frame_image)
                 detected_text = detect_text(image_path)
                 all_text.append(detected_text)
-                add_watermark(frame_image, "Your Watermark", (frame_image.shape[1] // 2, frame_image.shape[0] - 30))
+                add_watermark(frame_image, "Kim Chen", (frame_image.shape[1] // 2, frame_image.shape[0] - 30))
                 cv2.imwrite(image_path, frame_image)
                 image_paths.append(image_path)
     finally:
